@@ -12,4 +12,5 @@
 ## TechStack
 - Python
 - SQL
+---
 It also gives the admin many functions like customer analysis and viewing listed products and active users.
