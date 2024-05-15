@@ -1,0 +1,105 @@
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+
+UPDATE user
+SET City = 'New Delhi'
+WHERE Phone_Number = '0000000000';
+
+SELECT SLEEP(0.001);
+
+UPDATE user
+SET City = 'Bangalore'
+WHERE Phone_Number = '0000000000'; 
+
+COMMIT;
+
+-----------------------------------------------------
+
+START TRANSACTION;
+
+UPDATE product
+SET sold=1
+WHERE Product_ID=20;
+
+
+UPDATE product
+SET sold=0
+WHERE Product_ID=20;
+
+ROLLBACK;
+
+-----------------------------------------------------
+
+START TRANSACTION;
+
+SET total_cost = 50;
+
+INSERT INTO `Order` (Order_Date, Phone_Number, Total_Cost)
+VALUES (CURDATE(), '9958168111', total_cost);
+
+SET @order_id = LAST_INSERT_ID();  -- Get the order ID of the inserted record
+
+INSERT INTO Payment (Total_Cost, Card_expiry_Date, Card_Number, Phone_Number)
+VALUES (total_cost, CURDATE(), '1234567890123456', '9958168111');
+
+INSERT INTO Order_Info (Order_ID, Product_ID)
+VALUES (@order_id, 20);  
+
+ROLLBACK;
+
+--------------------------------------------------------
+
+START TRANSACTION;
+
+-- Delete entries from Cart_Info where the referenced product in Product table has sold=1
+DELETE CI
+FROM Cart_Info CI
+INNER JOIN Product P ON CI.Product_ID = P.Product_ID
+WHERE P.sold = 1;
+
+UPDATE Cart
+SET Total_Cost = (SELECT SUM(Price) FROM Cart_Info CI2 INNER JOIN Product P2 ON CI2.Product_ID = P2.Product_ID WHERE CI2.Cart_ID = Cart.Cart_ID)
+WHERE Cart.Cart_ID IN (SELECT Cart_ID FROM Cart_Info);
+
+COMMIT;
+
+---------------------------------------------------------
+
+START TRANSACTION;
+
+-- Insert a new product into the Product table
+INSERT INTO Product (Phone_Number, Price, Size, Gender, Category, Product_Name) 
+VALUES ('9810572925', 39.99, 'M', 'M', 'Clothing', 'T-shirt');
+
+-- Get the Product_ID of the newly inserted product
+SET @product_id := LAST_INSERT_ID();
+
+-- Insert the product into the user's cart
+INSERT INTO Cart_Info (Cart_ID, Product_ID)
+SELECT Cart_ID, @product_id
+FROM CART
+WHERE Phone_Number = '9810572925';
+
+-- Update the total cost in the user's cart
+UPDATE CART
+SET Total_Cost = Total_Cost + 39.99
+WHERE Phone_Number = '9810572925';
+
+COMMIT;
+
+---------------------------------------------------------
+
+START TRANSACTION;
+
+-- Get the latest order ID for the user '9810572925'
+SELECT Order_ID INTO @order_id
+FROM `Order`
+WHERE Phone_Number = '9810572925'
+ORDER BY Order_ID DESC
+LIMIT 1;
+
+-- Insert feedback for the latest order
+INSERT INTO Feedback (Phone_Number, Rating, Feedback, Order_ID)
+VALUES ('9810572925', 4.5, 'Great service and fast delivery!', @order_id);
+
+COMMIT;
